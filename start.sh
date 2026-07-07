@@ -37,13 +37,15 @@ if [[ ! -d .venv ]]; then
   "$PYTHON" -m venv .venv
 fi
 
-# shellcheck disable=SC1091
-source .venv/bin/activate
+VENV_PY=".venv/bin/python3"
+if [[ ! -x "$VENV_PY" ]]; then
+  VENV_PY=".venv/bin/python"
+fi
 
 echo "Установка зависимостей..."
-python -m pip install -q --upgrade pip
-python -m pip install -q -r requirements.txt
+"$VENV_PY" -m pip install -q --upgrade pip
+"$VENV_PY" -m pip install -q -r requirements.txt
 
 echo "Запуск VLauncher..."
-nohup python main.py >/dev/null 2>&1 &
+nohup "$VENV_PY" main.py >/dev/null 2>&1 &
 disown -h 2>/dev/null || true
