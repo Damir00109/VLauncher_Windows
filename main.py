@@ -4,11 +4,13 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from launcher.config import APP_NAME, BASE_DIR
+from launcher.subprocess_io import install_hidden_subprocess_patch
 from launcher.ui.main_window import MainWindow
 from launcher.ui.theme import APP_STYLESHEET
 
 
 def main() -> int:
+    install_hidden_subprocess_patch()
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     icon_path = BASE_DIR / "logo.ico"

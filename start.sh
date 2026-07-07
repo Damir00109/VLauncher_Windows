@@ -45,5 +45,9 @@ python -m pip install -q --upgrade pip
 python -m pip install -q -r requirements.txt
 
 echo "Запуск VLauncher..."
+if [[ -f DEBUG ]]; then
+  exec python main.py
+fi
+
 nohup python main.py >/dev/null 2>&1 &
 disown -h 2>/dev/null || true
