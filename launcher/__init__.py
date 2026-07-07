@@ -1,0 +1,1 @@
+"""Minecraft test launcher package."""

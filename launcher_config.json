@@ -1,0 +1,5 @@
+{
+  "api_base": "https://api.underworldmc.com",
+  "app_name": "VLauncher",
+  "keep_launcher_visible_on_start": false
+}

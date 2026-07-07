@@ -1,0 +1,12 @@
+.minecraft/
+instances/
+tools/
+submodules/Packs-Selector/
+session.json
+profile_settings.json
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
