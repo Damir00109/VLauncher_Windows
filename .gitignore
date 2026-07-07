@@ -5,7 +5,6 @@ submodules/Packs-Selector/
 session.json
 profile_settings.json
 .vlauncher_prefs.json
-DEBUG
 .venv/
 __pycache__/
 *.pyc

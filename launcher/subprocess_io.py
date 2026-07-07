@@ -3,8 +3,6 @@ import subprocess
 import sys
 from typing import Any, Dict
 
-from launcher.config import is_debug_mode
-
 _PATCHED = False
 
 
@@ -31,7 +29,7 @@ def decode_subprocess_bytes(raw: bytes) -> str:
 
 
 def hidden_subprocess_kwargs() -> Dict[str, Any]:
-    if is_debug_mode() or sys.platform != "win32":
+    if sys.platform != "win32":
         return {}
     startupinfo = subprocess.STARTUPINFO()
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -55,7 +53,7 @@ def _merge_hidden_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
 def install_hidden_subprocess_patch() -> None:
     global _PATCHED
-    if _PATCHED or is_debug_mode() or sys.platform != "win32":
+    if _PATCHED or sys.platform != "win32":
         return
 
     original_popen = subprocess.Popen

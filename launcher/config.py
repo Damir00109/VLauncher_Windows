@@ -13,7 +13,6 @@ def _app_base_dir() -> Path:
 
 
 BASE_DIR = _app_base_dir()
-DEBUG_FILE = BASE_DIR / "DEBUG"
 
 SESSION_FILE = BASE_DIR / "session.json"
 MINECRAFT_DIR = BASE_DIR / ".minecraft"
@@ -31,10 +30,6 @@ HWID = hashlib.sha256((platform.node() + str(uuid.getnode())).encode()).hexdiges
 
 API_BASE = "https://api.underworldmc.com"
 APP_NAME = "VLauncher"
-
-
-def is_debug_mode() -> bool:
-    return DEBUG_FILE.exists()
 
 
 def extract_texture_host() -> str:
