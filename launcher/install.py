@@ -154,6 +154,31 @@ def install_minecraft_stack(
     return resolve_launch_version(version, loader, loader_version, minecraft_dir), did_install
 
 
+def _download_if_needed(
+    dest: Path,
+    url: str,
+    expected_hash: str,
+    rel_path: str,
+    log,
+) -> str:
+    expected = (expected_hash or "").lower()
+    if expected and dest.is_file():
+        local_hash = file_sha256(dest)
+        if local_hash == expected:
+            log(f"[SYNC] актуален: {rel_path}")
+            return local_hash
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    log(f"[SYNC] загрузка: {rel_path}")
+    r = httpx.get(url, timeout=120)
+    r.raise_for_status()
+    dest.write_bytes(r.content)
+    actual_hash = file_sha256(dest)
+    if expected and actual_hash != expected:
+        raise RuntimeError(f"Хеш не совпал после загрузки: {rel_path}")
+    return actual_hash
+
+
 def sync_profile_files(
     profile_id: str,
     detail: Dict,
@@ -166,16 +191,13 @@ def sync_profile_files(
     base = f"{API_BASE}/launcher/game-profiles/{profile_id}/files"
     total = len(manifest)
     for index, rel_path in enumerate(manifest, start=1):
-        dest = game_dir / rel_path.replace("/", os.sep)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        url = f"{base}/{rel_path}"
-        log(f"[SYNC] ({index}/{total}) {rel_path}")
+        rel_norm = rel_path.replace("\\", "/")
+        dest = game_dir / rel_norm.replace("/", os.sep)
+        url = f"{base}/{rel_norm}"
         if on_progress:
-            on_progress(index, total, rel_path)
-        r = httpx.get(url, timeout=120)
-        r.raise_for_status()
-        dest.write_bytes(r.content)
-        hashes[rel_path] = file_sha256(dest)
+            on_progress(index, total, rel_norm)
+        log(f"[SYNC] ({index}/{total}) {rel_norm}")
+        hashes[rel_norm] = _download_if_needed(dest, url, manifest[rel_path], rel_norm, log)
     return hashes
 
 
@@ -247,11 +269,18 @@ def sync_optional_mods(
         label = mod.get("name") or mod_id
 
         if mod_id in enabled_ids:
+            expected_hash = str(mod.get("sha256") or "")
+            if expected_hash and target.is_file() and file_sha256(target) == expected_hash.lower():
+                log(f"[OPTS] актуален: {label}")
+                continue
             log(f"[OPTS] Включён мод: {label}")
             url = f"{base}/{rel_path}"
             r = httpx.get(url, timeout=120)
             r.raise_for_status()
             target.write_bytes(r.content)
+            actual = file_sha256(target)
+            if expected_hash and actual != expected_hash.lower():
+                raise RuntimeError(f"Хеш не совпал после загрузки опционального мода: {label}")
         elif filename not in required_mod_names and target.is_file():
             log(f"[OPTS] Отключён мод: {label}")
             target.unlink()
