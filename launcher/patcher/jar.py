@@ -13,7 +13,7 @@ def java_utf8_constant(value: str) -> bytes:
 def patch_jar_files(
     jar_glob: str,
     class_name: str,
-    patch_fn: Callable[[bytes], tuple[bytes, bool]],
+    patch_fn: Callable[[bytes, str], tuple[bytes, bool]],
     log: Optional[Callable[[str], None]] = None,
     *,
     refresh_backup: bool = False,
@@ -37,7 +37,7 @@ def patch_jar_files(
                     for item in rj.infolist():
                         data = rj.read(item.filename)
                         if item.filename == class_name:
-                            data, changed = patch_fn(data)
+                            data, changed = patch_fn(data, jar_path)
                             patched = patched or changed
                         wj.writestr(item, data)
             if patched:

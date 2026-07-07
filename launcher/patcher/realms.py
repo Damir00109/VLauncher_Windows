@@ -35,7 +35,7 @@ def patch_realms_client(
             log("[PATCH] Realms: нет замен host с одинаковой длиной (пропуск)")
         return 0
 
-    def _patch(data: bytes) -> tuple[bytes, bool]:
+    def _patch(data: bytes, _jar_path: str) -> tuple[bytes, bool]:
         changed = False
         for src, dst in replacements:
             if src in data:
