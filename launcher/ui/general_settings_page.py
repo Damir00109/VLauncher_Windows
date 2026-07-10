@@ -4,7 +4,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 from launcher.launcher_settings import get_keep_launcher_visible, set_keep_launcher_visible
-from launcher.ui.theme import GHOST_BUTTON_STYLE
+from launcher.ui.theme import CHECKBOX_STYLE, GHOST_BUTTON_STYLE
 from launcher.ui.widgets import create_panel
 
 
@@ -44,12 +44,7 @@ class GeneralSettingsPage(QWidget):
         options_box, options_layout = create_panel("Поведение")
         self.chk_keep_visible = QCheckBox("Не скрывать лаунчер при запуске игры")
         self.chk_keep_visible.setChecked(get_keep_launcher_visible())
-        self.chk_keep_visible.setStyleSheet(
-            "QCheckBox { color:#c6d0e4; spacing:8px; background:transparent; }"
-            "QCheckBox::indicator { width:18px; height:18px; border-radius:4px;"
-            "border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.2); }"
-            "QCheckBox::indicator:checked { background:#7c5cff; border-color:#9178ff; }"
-        )
+        self.chk_keep_visible.setStyleSheet(CHECKBOX_STYLE)
         self.chk_keep_visible.toggled.connect(set_keep_launcher_visible)
         options_layout.addWidget(self.chk_keep_visible)
         hint = QLabel(

@@ -322,3 +322,34 @@ QPushButton:disabled {
 """
 
 GEAR_BUTTON_STYLE = ICON_BUTTON_STYLE
+
+CHECKBOX_STYLE = """
+QCheckBox {
+    color: #eef2ff;
+    spacing: 10px;
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+QCheckBox:hover {
+    background: rgba(124, 92, 255, 0.12);
+}
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.2);
+}
+QCheckBox::indicator:hover {
+    border-color: rgba(124, 92, 255, 0.5);
+}
+QCheckBox::indicator:checked {
+    background: #7c5cff;
+    border-color: #9178ff;
+}
+QCheckBox::indicator:checked:hover {
+    background: #9178ff;
+    border-color: #a890ff;
+}
+"""

@@ -1,6 +1,7 @@
+import sys
 from typing import Optional
 
-from PyQt6.QtCore import QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QObject, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QLinearGradient, QMouseEvent, QPainter, QPainterPath
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -134,6 +135,7 @@ class TitleBar(QWidget):
         self._drag_offset: Optional[QPoint] = None
         self.setFixedHeight(TITLE_BAR_HEIGHT)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setCursor(Qt.CursorShape.SizeAllCursor)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(18, 8, 12, 8)
@@ -183,6 +185,10 @@ class TitleBar(QWidget):
         right_layout.addWidget(self.btn_close)
         layout.addWidget(self._right_slot, stretch=1)
 
+        self.title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        for slot in (self._left_slot, self._right_slot):
+            slot.installEventFilter(self)
+
     def set_back_visible(self, visible: bool) -> None:
         self.btn_back.setVisible(visible)
 
@@ -192,11 +198,63 @@ class TitleBar(QWidget):
     def add_trailing_widget(self, widget: QWidget) -> None:
         self.trailing_layout.addWidget(widget)
 
+    def _slot_child_at(self, slot: QWidget, event: QMouseEvent) -> Optional[QWidget]:
+        local_pos = event.position().toPoint()
+        child = slot.childAt(local_pos)
+        if child is not None:
+            return child
+        return slot.childAt(local_pos.x(), local_pos.y())
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched not in (self._left_slot, self._right_slot):
+            return super().eventFilter(watched, event)
+
+        if not isinstance(event, QMouseEvent):
+            return super().eventFilter(watched, event)
+
+        slot = watched
+        if not isinstance(slot, QWidget):
+            return super().eventFilter(watched, event)
+
+        if self._slot_child_at(slot, event) is not None:
+            return super().eventFilter(watched, event)
+
+        if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+            if self._begin_window_drag(event):
+                return True
+
+        if event.type() == QEvent.Type.MouseButtonDblClick and event.button() == Qt.MouseButton.LeftButton:
+            self.minimize_clicked.emit()
+            return True
+
+        return super().eventFilter(watched, event)
+
+    def _begin_window_drag(self, event: QMouseEvent) -> bool:
+        window = self.window()
+        if window is None:
+            return False
+
+        handle = window.windowHandle()
+        if handle is not None:
+            try:
+                if handle.startSystemMove():
+                    return True
+            except RuntimeError:
+                pass
+
+        if sys.platform == "win32":
+            self._drag_offset = event.globalPosition().toPoint() - window.frameGeometry().topLeft()
+            return True
+
+        if sys.platform.startswith("linux"):
+            global_pos = event.globalPosition().toPoint()
+            self._drag_offset = global_pos - window.frameGeometry().topLeft()
+            return True
+
+        return False
+
     def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.MouseButton.LeftButton:
-            window = self.window()
-            if window:
-                self._drag_offset = event.globalPosition().toPoint() - window.frameGeometry().topLeft()
+        if event.button() == Qt.MouseButton.LeftButton and self._begin_window_drag(event):
             event.accept()
             return
         super().mousePressEvent(event)

@@ -1,9 +1,10 @@
-from typing import Callable, Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QCheckBox, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from launcher.profile_settings import get_enabled_optional_mod_ids, set_enabled_optional_mod_ids
+from launcher.ui.theme import CHECKBOX_STYLE
 
 
 class OptionalModsList(QWidget):
@@ -19,6 +20,7 @@ class OptionalModsList(QWidget):
         self._profile_id: Optional[str] = None
         self._mods: List[Dict] = []
         self._updating = False
+        self._checkboxes: Dict[str, QCheckBox] = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -28,16 +30,22 @@ class OptionalModsList(QWidget):
         self.title_label.setStyleSheet("color:#8b97ad;font-size:11px;background:transparent;")
         layout.addWidget(self.title_label)
 
-        self.list_widget = QListWidget()
-        self.list_widget.setMinimumHeight(160)
-        self.list_widget.setStyleSheet(
-            "QListWidget { background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.06);"
-            "border-radius: 10px; color: #eef2ff; }"
-            "QListWidget::item { padding: 8px 10px; }"
-            "QListWidget::item:hover { background: rgba(124,92,255,0.12); }"
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.scroll_area.setMinimumHeight(160)
+        self.scroll_area.setStyleSheet(
+            "QScrollArea { background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.06);"
+            "border-radius: 10px; }"
         )
-        self.list_widget.itemChanged.connect(self._on_item_changed)
-        layout.addWidget(self.list_widget, stretch=1)
+
+        self._mods_host = QWidget()
+        self._mods_host.setStyleSheet("background: transparent;")
+        self._mods_layout = QVBoxLayout(self._mods_host)
+        self._mods_layout.setContentsMargins(4, 4, 4, 4)
+        self._mods_layout.setSpacing(2)
+        self.scroll_area.setWidget(self._mods_host)
+        layout.addWidget(self.scroll_area, stretch=1)
 
         self.hint_label = QLabel("Моды добавляет сервер. Выберите, что установить при запуске.")
         self.hint_label.setWordWrap(True)
@@ -49,15 +57,24 @@ class OptionalModsList(QWidget):
         self._mods = list(mods)
         self._refresh()
 
+    def _clear_mod_rows(self) -> None:
+        self._checkboxes.clear()
+        while self._mods_layout.count():
+            item = self._mods_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
     def _refresh(self) -> None:
         self._updating = True
-        self.list_widget.clear()
+        self._clear_mod_rows()
 
         if not self._profile_id or not self._mods:
             self.title_label.setText("Доступно (0)")
-            item = QListWidgetItem("— нет опциональных модов —")
-            item.setFlags(Qt.ItemFlag.NoItemFlags)
-            self.list_widget.addItem(item)
+            placeholder = QLabel("— нет опциональных модов —")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet("color:#6b7a94;font-size:12px;background:transparent;padding:24px 8px;")
+            self._mods_layout.addWidget(placeholder)
             self._updating = False
             return
 
@@ -67,34 +84,27 @@ class OptionalModsList(QWidget):
         for mod in self._mods:
             mod_id = str(mod.get("id") or "")
             name = str(mod.get("name") or mod_id)
-            item = QListWidgetItem(name)
-            item.setData(Qt.ItemDataRole.UserRole, mod_id)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(
-                Qt.CheckState.Checked if mod_id in enabled else Qt.CheckState.Unchecked
-            )
+            checkbox = QCheckBox(name)
+            checkbox.setStyleSheet(CHECKBOX_STYLE)
+            checkbox.setChecked(mod_id in enabled)
             description = str(mod.get("description") or "").strip()
             if description:
-                item.setToolTip(description)
-            self.list_widget.addItem(item)
+                checkbox.setToolTip(description)
+            checkbox.toggled.connect(
+                lambda checked, mid=mod_id, label=name: self._on_toggle(mid, label, checked)
+            )
+            self._mods_layout.addWidget(checkbox)
+            self._checkboxes[mod_id] = checkbox
 
+        self._mods_layout.addStretch(1)
         self._updating = False
 
-    def _on_item_changed(self, item: QListWidgetItem) -> None:
+    def _on_toggle(self, mod_id: str, label: str, checked: bool) -> None:
         if self._updating or not self._profile_id:
             return
-        mod_id = item.data(Qt.ItemDataRole.UserRole)
-        if not mod_id:
-            return
 
-        enabled_ids: Set[str] = set()
-        for index in range(self.list_widget.count()):
-            row = self.list_widget.item(index)
-            row_id = row.data(Qt.ItemDataRole.UserRole)
-            if row_id and row.checkState() == Qt.CheckState.Checked:
-                enabled_ids.add(str(row_id))
-
-        set_enabled_optional_mod_ids(self._profile_id, sorted(enabled_ids))
+        enabled_ids = sorted(mid for mid, checkbox in self._checkboxes.items() if checkbox.isChecked())
+        set_enabled_optional_mod_ids(self._profile_id, enabled_ids)
         if self._log:
-            state = "вкл." if mod_id in enabled_ids else "выкл."
-            self._log(f"[OPTS] {item.text()}: {state}")
+            state = "вкл." if checked else "выкл."
+            self._log(f"[OPTS] {label}: {state}")
