@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import QWidget
 from launcher.api import api_request, refresh_session
 from launcher.config import INSTANCES_DIR, MINECRAFT_DIR, extract_texture_host
 from launcher.install import (
+    enabled_optional_mod_relpaths,
     install_minecraft_stack,
     purge_locked_extras,
     sync_optional_mods,
@@ -163,34 +164,6 @@ class PrepareLaunchWorker(QThread):
             patch_authlib(extract_texture_host(), self.log, refresh_backup=did_install)
             self.log(f"[INSTALL] Версия для запуска: {launch_version}")
 
-            manifest = detail.get("manifest") or {}
-            local_hashes: Dict[str, str] = {}
-            if manifest:
-                self.log(f"[SYNC] Загрузка {len(manifest)} защищённых файлов в {instance_dir}...")
-                local_hashes = sync_profile_files(
-                    self.profile_id,
-                    detail,
-                    instance_dir,
-                    self.log,
-                    self._on_sync_progress,
-                )
-                if self._stopped():
-                    return
-                purge_locked_extras(instance_dir, detail, self.log)
-                if self._stopped():
-                    return
-                verify = api_request(
-                    "POST",
-                    f"/launcher/game-profiles/{self.profile_id}/verify",
-                    {"accessToken": self.token, "files": local_hashes},
-                    auth=self.token,
-                )
-                if verify and not verify.get("valid", True):
-                    invalid = ", ".join(verify.get("invalid", []))
-                    self.failed_signal.emit(f"Проверка целостности не пройдена: {invalid}")
-                    return
-                self.log("[OK] Целостность файлов подтверждена")
-
             enabled_optional = get_enabled_optional_mod_ids(
                 self.profile_id,
                 detail.get("optionalMods") or [],
@@ -206,6 +179,35 @@ class PrepareLaunchWorker(QThread):
                 )
                 if self._stopped():
                     return
+
+            manifest = detail.get("manifest") or {}
+            local_hashes: Dict[str, str] = {}
+            if manifest:
+                self.log(f"[SYNC] Загрузка {len(manifest)} защищённых файлов в {instance_dir}...")
+                local_hashes = sync_profile_files(
+                    self.profile_id,
+                    detail,
+                    instance_dir,
+                    self.log,
+                    self._on_sync_progress,
+                )
+                if self._stopped():
+                    return
+                keep_optional = enabled_optional_mod_relpaths(detail, enabled_optional)
+                purge_locked_extras(instance_dir, detail, self.log, keep_relpaths=keep_optional)
+                if self._stopped():
+                    return
+                verify = api_request(
+                    "POST",
+                    f"/launcher/game-profiles/{self.profile_id}/verify",
+                    {"accessToken": self.token, "files": local_hashes},
+                    auth=self.token,
+                )
+                if verify and not verify.get("valid", True):
+                    invalid = ", ".join(verify.get("invalid", []))
+                    self.failed_signal.emit(f"Проверка целостности не пройдена: {invalid}")
+                    return
+                self.log("[OK] Целостность файлов подтверждена")
 
             config = api_request(
                 "GET",

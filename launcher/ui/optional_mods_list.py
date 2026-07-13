@@ -84,16 +84,31 @@ class OptionalModsList(QWidget):
         for mod in self._mods:
             mod_id = str(mod.get("id") or "")
             name = str(mod.get("name") or mod_id)
+            description = str(mod.get("description") or "").strip()
+
+            row = QWidget()
+            row.setStyleSheet("background: transparent;")
+            row_layout = QVBoxLayout(row)
+            row_layout.setContentsMargins(0, 2, 0, 2)
+            row_layout.setSpacing(1)
+
             checkbox = QCheckBox(name)
             checkbox.setStyleSheet(CHECKBOX_STYLE)
             checkbox.setChecked(mod_id in enabled)
-            description = str(mod.get("description") or "").strip()
-            if description:
-                checkbox.setToolTip(description)
             checkbox.toggled.connect(
                 lambda checked, mid=mod_id, label=name: self._on_toggle(mid, label, checked)
             )
-            self._mods_layout.addWidget(checkbox)
+            row_layout.addWidget(checkbox)
+
+            if description:
+                desc_label = QLabel(description)
+                desc_label.setWordWrap(True)
+                desc_label.setStyleSheet(
+                    "color:#6b7a94;font-size:10px;background:transparent;padding-left:22px;"
+                )
+                row_layout.addWidget(desc_label)
+
+            self._mods_layout.addWidget(row)
             self._checkboxes[mod_id] = checkbox
 
         self._mods_layout.addStretch(1)

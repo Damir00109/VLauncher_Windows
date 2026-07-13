@@ -201,10 +201,22 @@ def sync_profile_files(
     return hashes
 
 
+def enabled_optional_mod_relpaths(detail: Dict, enabled_ids: Set[str]) -> Set[str]:
+    """Пути включённых опциональных модов в mods/ — не удалять при очистке."""
+    paths: Set[str] = set()
+    for mod in detail.get("optionalMods") or []:
+        mod_id = str(mod.get("id") or "")
+        rel_path = str(mod.get("file") or "").replace("\\", "/")
+        if mod_id in enabled_ids and rel_path:
+            paths.add(f"mods/{Path(rel_path).name}")
+    return paths
+
+
 def purge_locked_extras(
     game_dir: Path,
     detail: Dict,
     log,
+    keep_relpaths: Optional[Set[str]] = None,
 ) -> int:
     """Удаляет из защищённых папок файлы, которых нет в манифесте сервера."""
     manifest: Dict[str, str] = detail.get("manifest") or {}
@@ -213,6 +225,7 @@ def purge_locked_extras(
 
     locked_dirs = detail.get("lockedDirs") or ["mods", "config"]
     allowed = {p.replace("\\", "/") for p in manifest}
+    keep = {p.replace("\\", "/") for p in (keep_relpaths or set())}
     removed = 0
 
     for folder in locked_dirs:
@@ -226,7 +239,7 @@ def purge_locked_extras(
             if not file_path.is_file():
                 continue
             rel = file_path.relative_to(game_dir).as_posix()
-            if rel in allowed:
+            if rel in allowed or rel in keep:
                 continue
             try:
                 file_path.unlink()
