@@ -6,8 +6,10 @@
 
 ### Windows
 
-1. Установите [Python 3.10+](https://www.python.org/downloads/) (при установке включите **Add Python to PATH**).
-2. Запустите **`start.bat`** — зависимости установятся автоматически.
+1. Запустите **`start.bat`** — при первом запуске поставит portable Conda в `tools/conda`, дальше будет её использовать.
+2. Альтернатива со системным Python: **`start-old.bat`** (нужен [Python 3.10+](https://www.python.org/downloads/) в PATH).
+
+Повторно поставить Conda вручную можно через **`install-conda.bat`**.
 
 ### macOS / Linux
 
@@ -38,7 +40,7 @@ chmod +x start.sh
 | `.minecraft/` | Общие файлы Minecraft |
 | `instances/` | Файлы каждой сборки (сейвы, моды, текстуры) |
 | `submodules/` | Packs-Selector (скачивается автоматически) |
-| `tools/` | Portable Git (скачивается автоматически) |
+| `tools/` | Portable Git (авто) и portable Conda (`start.bat` / `install-conda.bat`) |
 
 ## Ручной запуск
 
@@ -48,6 +50,15 @@ chmod +x start.sh
 pip install -r requirements.txt
 python main.py
 ```
+
+С portable Conda:
+
+```bat
+call tools\conda\Scripts\activate.bat tools\conda\envs\vlauncher
+pip install -r requirements.txt
+python main.py
+```
+
 
 **macOS / Linux:**
 

@@ -1,17 +1,31 @@
 @echo off
 chcp 65001 >nul
+setlocal EnableExtensions
 cd /d "%~dp0"
 
-where python >nul 2>&1
-if errorlevel 1 (
-    echo Python не найден. Установите Python 3.10+ с https://www.python.org/downloads/
-    echo При установке отметьте "Add Python to PATH".
-    pause
-    exit /b 1
+set "ROOT=%~dp0"
+set "ROOT=%ROOT:~0,-1%"
+set "ENV_PY=%ROOT%\tools\conda\envs\vlauncher\python.exe"
+set "ENV_PYW=%ROOT%\tools\conda\envs\vlauncher\pythonw.exe"
+
+if not exist "%ENV_PY%" (
+    echo Первый запуск: установка portable Conda...
+    echo.
+    call "%~dp0install-conda.bat" /quiet
+    if errorlevel 1 (
+        echo Не удалось установить Conda.
+        pause
+        exit /b 1
+    )
+    if not exist "%ENV_PY%" (
+        echo Окружение Conda не найдено после установки.
+        pause
+        exit /b 1
+    )
 )
 
 echo Установка зависимостей...
-python -m pip install -r requirements.txt -q
+"%ENV_PY%" -m pip install -r requirements.txt -q
 if errorlevel 1 (
     echo Не удалось установить зависимости.
     pause
@@ -19,10 +33,9 @@ if errorlevel 1 (
 )
 
 echo Запуск VLauncher...
-where pythonw >nul 2>&1
-if errorlevel 1 (
-    start "" python main.py
+if exist "%ENV_PYW%" (
+    start "" "%ENV_PYW%" main.py
 ) else (
-    start "" pythonw main.py
+    start "" "%ENV_PY%" main.py
 )
 exit /b 0

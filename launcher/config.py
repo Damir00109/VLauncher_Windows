@@ -20,6 +20,8 @@ INSTANCES_DIR = BASE_DIR / "instances"
 SUBMODULES_DIR = BASE_DIR / "submodules"
 TOOLS_DIR = BASE_DIR / "tools"
 PORTABLE_GIT_DIR = TOOLS_DIR / "git"
+PORTABLE_CONDA_DIR = TOOLS_DIR / "conda"
+PORTABLE_CONDA_ENV = PORTABLE_CONDA_DIR / "envs" / "vlauncher"
 PROXY_PORT = 8080
 
 PACKS_SELECTOR_REPO = "https://github.com/Damir00109/Packs-Selector.git"
