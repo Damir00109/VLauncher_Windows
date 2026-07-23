@@ -1,7 +1,7 @@
 import glob
 from typing import Callable, List, Optional, Tuple
 
-from launcher.config import MINECRAFT_DIR, PROXY_PORT
+from launcher.config import minecraft_dir, PROXY_PORT
 from launcher.patcher.jar import patch_jar_files
 
 REALMS_ENV_CLASS = "com/mojang/realmsclient/client/RealmsClient$Environment.class"
@@ -27,7 +27,7 @@ def patch_realms_client(
     refresh_backup: bool = False,
 ) -> int:
     replacements = _realm_replacements()
-    pattern = str(MINECRAFT_DIR / "libraries" / "net" / "minecraft" / "client" / "*" / "client-*.jar")
+    pattern = str(minecraft_dir() / "libraries" / "net" / "minecraft" / "client" / "*" / "client-*.jar")
     target_classes = (REALMS_ENV_CLASS, REALMS_CLIENT_CLASS)
 
     if not replacements:

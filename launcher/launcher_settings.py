@@ -1,23 +1,23 @@
 import json
-from pathlib import Path
+from typing import Any, Dict
 
-from launcher.config import BASE_DIR
-
-_PREFS_FILE = BASE_DIR / ".vlauncher_prefs.json"
+from launcher.config import data_prefs_file, ensure_data_dirs
 
 
-def _load_prefs() -> dict:
-    if not _PREFS_FILE.is_file():
+def _load_prefs() -> Dict[str, Any]:
+    path = data_prefs_file()
+    if not path.is_file():
         return {}
     try:
-        data = json.loads(_PREFS_FILE.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (json.JSONDecodeError, OSError):
         return {}
 
 
-def _save_prefs(data: dict) -> None:
-    _PREFS_FILE.write_text(
+def _save_prefs(data: Dict[str, Any]) -> None:
+    ensure_data_dirs()
+    data_prefs_file().write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )

@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from launcher.api import api_request, refresh_session
-from launcher.config import APP_NAME, HWID, INSTANCES_DIR, extract_texture_host
+from launcher.config import APP_NAME, HWID, APP_VERSION, UPDATE_REPO_URL, data_dir, instances_dir, extract_texture_host
 from launcher.launcher_settings import get_keep_launcher_visible
 from launcher.patcher import patch_authlib
 from launcher.profile_settings import get_ram_mb
@@ -48,6 +48,7 @@ from launcher.workers import (
     PrepareLaunchWorker,
     SessionRefreshWorker,
     SkinHeadWorker,
+    UpdateCheckWorker,
 )
 
 
@@ -104,7 +105,9 @@ class MainWindow(QMainWindow):
         self.skin_worker: Optional[SkinHeadWorker] = None
         self.packs_worker: Optional[PacksSelectorLaunchWorker] = None
         self.news_worker: Optional[NewsListWorker] = None
+        self.update_worker: Optional[UpdateCheckWorker] = None
         self._pending_launch_profile: Optional[Dict] = None
+        self._update_prompt_open = False
         self._shutting_down = False
         self._progress_status = ""
         self._progress_last_value = -1
@@ -120,9 +123,11 @@ class MainWindow(QMainWindow):
         self.packs_bootstrap_log.connect(self.log)
         start_realms_proxy(self.log)
         patch_authlib(extract_texture_host(), self.log)
-        self.log(f"{APP_NAME} готов к работе")
+        self.log(f"{APP_NAME} {APP_VERSION} готов к работе")
+        self.log(f"[PATH] Данные: {data_dir()}")
         self._start_packs_selector_bootstrap()
         self._start_saved_session()
+        self._start_update_check(silent=True)
 
     def _start_packs_selector_bootstrap(self) -> None:
         def _run() -> None:
@@ -179,7 +184,11 @@ class MainWindow(QMainWindow):
         self.console.setFont(QFont("Consolas", 10))
         self.console.setReadOnly(True)
 
-        self.general_settings_page = GeneralSettingsPage(self.console, on_back=self._show_main_page)
+        self.general_settings_page = GeneralSettingsPage(
+            self.console,
+            on_back=self._show_main_page,
+            on_check_updates=lambda: self._start_update_check(silent=False),
+        )
         self.packs_manager_page = PacksManagerPage(
             on_back=self._show_main_page,
             on_open_manager=self._open_packs_selector,
@@ -334,7 +343,7 @@ class MainWindow(QMainWindow):
         if not self.access_token:
             QMessageBox.warning(self, "Паки", "Сначала войдите")
             return
-        instance_dir = INSTANCES_DIR / str(gp["slug"])
+        instance_dir = instances_dir() / str(gp["slug"])
         optional_mods: List[Dict] = []
         detail = api_request(
             "GET",
@@ -390,10 +399,84 @@ class MainWindow(QMainWindow):
         gp = self.selected_game_profile()
         if not gp:
             return None
-        return INSTANCES_DIR / str(gp["slug"])
+        return instances_dir() / str(gp["slug"])
 
     def _open_logs(self):
+        self.general_settings_page.refresh_path_field()
         self.stack.setCurrentIndex(self.PAGE_GENERAL_SETTINGS)
+
+    def _start_update_check(self, *, silent: bool = True) -> None:
+        if self._worker_running(self.update_worker):
+            return
+        self.general_settings_page.set_updates_busy(True)
+        if not silent:
+            self.log("[UPDATE] Проверка обновлений…")
+        worker = UpdateCheckWorker(self)
+        self.update_worker = worker
+        worker.update_signal.connect(lambda info: self._on_update_available(info, silent=silent))
+        worker.up_to_date_signal.connect(lambda: self._on_update_up_to_date(silent=silent))
+        worker.no_releases_signal.connect(lambda msg: self._on_update_no_releases(msg, silent=silent))
+        worker.fail_signal.connect(lambda msg: self._on_update_check_failed(msg, silent=silent))
+        worker.finished.connect(lambda: self.general_settings_page.set_updates_busy(False))
+        worker.start()
+
+    def _on_update_available(self, info, *, silent: bool) -> None:
+        from launcher.updates import UpdateInfo
+
+        if not isinstance(info, UpdateInfo):
+            return
+        self.log(f"[UPDATE] Доступна версия {info.tag} (сейчас {APP_VERSION})")
+        if self._update_prompt_open:
+            return
+        self._update_prompt_open = True
+        text = (
+            f"Доступно обновление {info.tag}\n"
+            f"Текущая версия: {APP_VERSION}\n\n"
+            f"Открыть страницу загрузки?"
+        )
+        reply = QMessageBox.information(
+            self,
+            "Обновление",
+            text,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        self._update_prompt_open = False
+        if reply == QMessageBox.StandardButton.Yes:
+            from PyQt6.QtGui import QDesktopServices
+            from PyQt6.QtCore import QUrl
+
+            url = info.download_url or info.html_url or UPDATE_REPO_URL
+            QDesktopServices.openUrl(QUrl(url))
+
+    def _on_update_up_to_date(self, *, silent: bool) -> None:
+        if silent:
+            self.log(f"[UPDATE] Актуальная версия {APP_VERSION}")
+        else:
+            QMessageBox.information(
+                self,
+                "Обновления",
+                f"Установлена актуальная версия {APP_VERSION}.",
+            )
+            self.log(f"[UPDATE] Актуальная версия {APP_VERSION}")
+
+    def _on_update_no_releases(self, message: str, *, silent: bool) -> None:
+        self.log(f"[UPDATE] {message}")
+        if not silent:
+            QMessageBox.information(
+                self,
+                "Обновления",
+                f"{message}\n\nКогда появится release в\n{UPDATE_REPO_URL}\nлаунчер предложит скачать его.",
+            )
+
+    def _on_update_check_failed(self, message: str, *, silent: bool) -> None:
+        self.log(f"[UPDATE] Не удалось проверить: {message}")
+        if not silent:
+            QMessageBox.warning(
+                self,
+                "Обновления",
+                f"Не удалось проверить обновления.\n{message}\n\nРепозиторий:\n{UPDATE_REPO_URL}",
+            )
 
     def log(self, text: str):
         self.console.append(text)
@@ -493,6 +576,7 @@ class MainWindow(QMainWindow):
         self._retire_worker("skin_worker", None, 5000)
         self._retire_worker("packs_worker", "request_stop", 120000)
         self._retire_worker("news_worker", None, 5000)
+        self._retire_worker("update_worker", None, 5000)
 
     def _open_packs_selector(self, pack_type: str):
         gp = self.selected_game_profile()

@@ -11,6 +11,7 @@ from launcher.ui.theme import APP_STYLESHEET
 
 
 def main() -> int:
+    # Must run before QApplication so Windows taskbar uses our icon/AppID.
     prepare_platform_app_icon()
     install_hidden_subprocess_patch()
     app = QApplication(sys.argv)

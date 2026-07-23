@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
-from launcher.config import MINECRAFT_DIR
+from launcher.config import minecraft_dir
 from launcher.patcher.jar import java_utf8_constant, patch_jar_files
 
 TEXTURE_CHECKER_CLASS = "com/mojang/authlib/yggdrasil/TextureUrlChecker.class"
@@ -61,7 +61,7 @@ def patch_authlib(
     *,
     refresh_backup: bool = False,
 ) -> int:
-    pattern = str(MINECRAFT_DIR / "libraries" / "com" / "mojang" / "authlib" / "*" / "authlib-*.jar")
+    pattern = str(minecraft_dir() / "libraries" / "com" / "mojang" / "authlib" / "*" / "authlib-*.jar")
     patch_modes: Dict[str, str] = {}
 
     def _patch(data: bytes, jar_path: str) -> tuple[bytes, bool]:

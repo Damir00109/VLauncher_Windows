@@ -1,20 +1,22 @@
 import json
 from typing import Any, Dict
 
-from launcher.config import SESSION_FILE
+from launcher.config import ensure_data_dirs, session_file
 
 
 def load_session() -> Dict[str, Any]:
-    if not SESSION_FILE.exists():
+    path = session_file()
+    if not path.exists():
         return {}
     try:
-        return json.loads(SESSION_FILE.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
 
 
 def save_session(refresh_token: str, login: str) -> None:
-    SESSION_FILE.write_text(
+    ensure_data_dirs()
+    session_file().write_text(
         json.dumps({"refreshToken": refresh_token, "login": login}, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
@@ -22,6 +24,6 @@ def save_session(refresh_token: str, login: str) -> None:
 
 def clear_session_file() -> None:
     try:
-        SESSION_FILE.unlink(missing_ok=True)
+        session_file().unlink(missing_ok=True)
     except OSError:
         pass

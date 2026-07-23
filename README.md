@@ -2,68 +2,62 @@
 
 Игровой лаунчер для сервера **Underworld Minecraft**.
 
+Windows-релизы: [Damir00109/VLauncher_Windows](https://github.com/Damir00109/VLauncher_Windows).
+
 ## Быстрый старт
 
-### Windows
+### Windows (из исходников)
 
-1. Запустите **`start.bat`** — при первом запуске поставит portable Conda в `tools/conda`, дальше будет её использовать.
+1. Запустите **`start.bat`** — при первом запуске поставит portable Conda в `tools/conda`.
 2. Альтернатива со системным Python: **`start-old.bat`** (нужен [Python 3.10+](https://www.python.org/downloads/) в PATH).
 
-Повторно поставить Conda вручную можно через **`install-conda.bat`**.
+### Windows (готовый exe)
 
-### macOS / Linux
+1. Скачайте `VLauncher.exe` из [Releases](https://github.com/Damir00109/VLauncher_Windows/releases).
+2. Запустите. Данные по умолчанию: `%APPDATA%\.mcvanilla`.
 
-1. Python 3.10+ и **git** в системе (`brew install python@3.12 git` на Mac).
-2. В терминале:
+Сборка exe: **`build.bat`** → `dist\VLauncher.exe`.
 
-```bash
-chmod +x start.sh
-./start.sh
-```
+## Данные и настройки
 
-3. Войдите под аккаунтом, выберите сборку и нажмите **ИГРАТЬ**.
+По умолчанию лаунчер хранит всё в **`%APPDATA%\.mcvanilla`**:
 
-При первом запуске лаунчер скачает Minecraft, моды и нужные файлы — это может занять несколько минут.
+| Путь | Назначение |
+|------|------------|
+| `.minecraft/` | Клиент, libraries, assets |
+| `instances/` | Сборки (сейвы, моды, текстуры) |
+| `submodules/` | Packs-Selector |
+| `tools/` | Portable Git и пр. |
+| `session.json` | Сессия входа |
+| `profile_settings.json` | RAM и опциональные моды |
+| `.vlauncher_prefs.json` | Настройки лаунчера |
+
+Путь можно сменить в **Настройки → Папка данных**.
+
+Указатель на выбранный путь хранится в `%APPDATA%\VLauncher\prefs.json` (чтобы путь можно было сменить).
+
+## Обновления
+
+Лаунчер сам проверяет [GitHub Releases](https://github.com/Damir00109/VLauncher_Windows/releases) при старте и по кнопке в настройках.
+
+Как выложить обновление:
+
+1. Поднимите `APP_VERSION` в `launcher/config.py` (например `0.2.0`).
+2. Соберите `build.bat`.
+3. В репозитории `VLauncher_Windows` создайте Release с тегом **`v0.2.0`**.
+4. Прикрепите asset **`VLauncher.exe`**.
 
 ## Возможности
 
-- Вход в аккаунт с автоматическим восстановлением сессии
-- Выбор сборки с сервера и установка/обновление файлов
+- Вход в аккаунт с восстановлением сессии
+- Выбор сборки, установка и обновление файлов
 - Настройка RAM для каждой сборки
-- Установка текстур и шейдеров через встроенный Packs-Selector
-- Журнал событий в **Настройки → Консоль**
-
-## Структура папок
-
-| Папка | Назначение |
-|-------|------------|
-| `.minecraft/` | Общие файлы Minecraft |
-| `instances/` | Файлы каждой сборки (сейвы, моды, текстуры) |
-| `submodules/` | Packs-Selector (скачивается автоматически) |
-| `tools/` | Portable Git (авто) и portable Conda (`start.bat` / `install-conda.bat`) |
+- Текстуры и шейдеры через Packs-Selector
+- Своя папка данных и проверка обновлений с GitHub
 
 ## Ручной запуск
 
-**Windows:**
-
 ```bat
 pip install -r requirements.txt
 python main.py
-```
-
-С portable Conda:
-
-```bat
-call tools\conda\Scripts\activate.bat tools\conda\envs\vlauncher
-pip install -r requirements.txt
-python main.py
-```
-
-
-**macOS / Linux:**
-
-```bash
-python3 -m venv .venv
-.venv/bin/python3 -m pip install -r requirements.txt
-.venv/bin/python3 main.py
 ```

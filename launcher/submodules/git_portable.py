@@ -7,7 +7,7 @@ from typing import Callable, Optional
 
 import httpx
 
-from launcher.config import PORTABLE_GIT_DIR, TOOLS_DIR
+from launcher.config import portable_git_dir, tools_dir
 
 # MinGit — портативный Git for Windows без GUI.
 GIT_RELEASE = "2.47.1.windows.1"
@@ -19,14 +19,15 @@ MINGWIT_URL = (
 
 
 def _git_candidates() -> list[Path]:
+    root = portable_git_dir()
     if sys.platform == "win32":
         return [
-            PORTABLE_GIT_DIR / "cmd" / "git.exe",
-            PORTABLE_GIT_DIR / "mingw64" / "bin" / "git.exe",
+            root / "cmd" / "git.exe",
+            root / "mingw64" / "bin" / "git.exe",
         ]
     return [
-        PORTABLE_GIT_DIR / "bin" / "git",
-        PORTABLE_GIT_DIR / "cmd" / "git",
+        root / "bin" / "git",
+        root / "cmd" / "git",
     ]
 
 
@@ -99,12 +100,14 @@ def install_portable_git(
     if sys.platform != "win32":
         raise RuntimeError(_missing_git_message())
 
-    TOOLS_DIR.mkdir(parents=True, exist_ok=True)
-    if force and PORTABLE_GIT_DIR.exists():
-        shutil.rmtree(PORTABLE_GIT_DIR)
-    PORTABLE_GIT_DIR.mkdir(parents=True, exist_ok=True)
+    TOOLS = tools_dir()
+    GIT_ROOT = portable_git_dir()
+    TOOLS.mkdir(parents=True, exist_ok=True)
+    if force and GIT_ROOT.exists():
+        shutil.rmtree(GIT_ROOT)
+    GIT_ROOT.mkdir(parents=True, exist_ok=True)
 
-    archive = TOOLS_DIR / f"MinGit-{GIT_VERSION}-64-bit.zip"
+    archive = TOOLS / f"MinGit-{GIT_VERSION}-64-bit.zip"
     _log(log, f"[GIT] Загрузка MinGit {GIT_VERSION}...")
     with httpx.stream("GET", MINGWIT_URL, follow_redirects=True, timeout=120) as response:
         response.raise_for_status()
@@ -112,8 +115,8 @@ def install_portable_git(
             for chunk in response.iter_bytes(65536):
                 f.write(chunk)
 
-    _log(log, f"[GIT] Распаковка → {PORTABLE_GIT_DIR}")
-    _extract_zip(archive, PORTABLE_GIT_DIR)
+    _log(log, f"[GIT] Распаковка → {GIT_ROOT}")
+    _extract_zip(archive, GIT_ROOT)
     try:
         archive.unlink(missing_ok=True)
     except OSError:

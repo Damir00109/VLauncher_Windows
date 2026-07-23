@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import Callable, Iterable, List, Optional, Sequence
 
 from launcher.config import (
-    INSTANCES_DIR,
-    PACKS_SELECTOR_DIR,
     PACKS_SELECTOR_NAME,
     PACKS_SELECTOR_REPO,
+    instances_dir,
+    packs_selector_dir,
 )
 from launcher.submodules.manager import SubmoduleManager
+from launcher.utils import find_runtime_python, is_frozen_app
 
 PACKS_SELECTOR_PORT = 8765
 
@@ -36,31 +37,47 @@ def normalize_pack_types(packs: Iterable[str]) -> List[str]:
     return result
 
 
-def packs_selector_dir() -> Path:
-    return PACKS_SELECTOR_DIR.resolve()
-
-
 def packs_selector_ready() -> bool:
-    root = packs_selector_dir()
+    root = packs_selector_dir().resolve()
     return (root / "packs_selector.py").is_file() and (root / "web" / "index.html").is_file()
 
 
-def _deps_installed() -> bool:
-    return importlib.util.find_spec("eel") is not None and importlib.util.find_spec("requests") is not None
+def _deps_installed(python: Path) -> bool:
+    # Dev: same interpreter — fast local check without spawning.
+    if not is_frozen_app():
+        try:
+            if python.resolve() == Path(sys.executable).resolve():
+                return (
+                    importlib.util.find_spec("eel") is not None
+                    and importlib.util.find_spec("requests") is not None
+                )
+        except OSError:
+            pass
+    try:
+        result = subprocess.run(
+            [str(python), "-c", "import eel, requests"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def _install_deps(root: Path, log: Optional[Callable[[str], None]] = None) -> None:
-    if _deps_installed():
+    python = find_runtime_python()
+    if _deps_installed(python):
         return
     req = root / "requirements.txt"
     if req.is_file():
         if log:
-            log(f"[PACKS] pip install -r {req.name}")
-        cmd = [sys.executable, "-m", "pip", "install", "-r", str(req)]
+            log(f"[PACKS] pip install -r {req.name} ({python})")
+        cmd = [str(python), "-m", "pip", "install", "-r", str(req)]
     else:
         if log:
-            log("[PACKS] pip install eel requests")
-        cmd = [sys.executable, "-m", "pip", "install", "eel", "requests"]
+            log(f"[PACKS] pip install eel requests ({python})")
+        cmd = [str(python), "-m", "pip", "install", "eel", "requests"]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -95,7 +112,7 @@ def ensure_packs_selector(
 
 
 def instance_game_path(slug: str) -> Path:
-    return (INSTANCES_DIR / slug).resolve()
+    return (instances_dir() / slug).resolve()
 
 
 def _require_launch_params(minecraft_version: str, loader: str) -> tuple[str, str]:
@@ -126,7 +143,7 @@ def build_launch_command(
     version, loader_name = _require_launch_params(minecraft_version, loader)
 
     cmd = [
-        sys.executable,
+        str(find_runtime_python()),
         "packs_selector.py",
         f"--game-path={game_path}",
         f"--mc-version={version}",

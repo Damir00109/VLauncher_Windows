@@ -3,15 +3,15 @@ import subprocess
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from launcher.config import SUBMODULES_DIR
+from launcher.config import submodules_dir
 from launcher.submodules.git_portable import ensure_portable_git, find_git_executable
 
 
 class SubmoduleManager:
-    """Загрузка и обновление git-сабмодулей в test_launcher/submodules/."""
+    """Загрузка и обновление git-сабмодулей в <data>/submodules/."""
 
     def __init__(self, root: Optional[Path] = None):
-        self.root = root or SUBMODULES_DIR
+        self.root = root or submodules_dir()
         self.root.mkdir(parents=True, exist_ok=True)
 
     def ensure_git(self, log: Optional[Callable[[str], None]] = None) -> Path:

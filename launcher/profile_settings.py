@@ -1,23 +1,23 @@
 import json
 from typing import Dict, List, Set
 
-from launcher.config import BASE_DIR
-
-SETTINGS_FILE = BASE_DIR / "profile_settings.json"
+from launcher.config import ensure_data_dirs, profile_settings_file
 
 
 def _load_all() -> Dict[str, Dict]:
-    if not SETTINGS_FILE.exists():
+    path = profile_settings_file()
+    if not path.exists():
         return {}
     try:
-        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (json.JSONDecodeError, OSError):
         return {}
 
 
 def _save_all(data: Dict[str, Dict]) -> None:
-    SETTINGS_FILE.write_text(
+    ensure_data_dirs()
+    profile_settings_file().write_text(
         json.dumps(data, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )

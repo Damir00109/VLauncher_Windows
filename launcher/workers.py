@@ -8,7 +8,7 @@ from PyQt6.QtGui import QImage, QPixmap, QPainter
 from PyQt6.QtWidgets import QWidget
 
 from launcher.api import api_request, refresh_session
-from launcher.config import INSTANCES_DIR, MINECRAFT_DIR, extract_texture_host
+from launcher.config import instances_dir, minecraft_dir, extract_texture_host
 from launcher.install import (
     enabled_optional_mod_relpaths,
     install_minecraft_stack,
@@ -73,6 +73,33 @@ class SkinHeadWorker(QThread):
             self.ready_signal.emit(QPixmap())
 
 
+class UpdateCheckWorker(QThread):
+    update_signal = pyqtSignal(object)
+    up_to_date_signal = pyqtSignal()
+    no_releases_signal = pyqtSignal(str)
+    fail_signal = pyqtSignal(str)
+
+    def __init__(self, parent: Optional[QWidget] = None):
+        super().__init__(parent)
+        self.setObjectName("UpdateCheckWorker")
+
+    def run(self):
+        try:
+            from launcher.updates import check_for_update
+
+            result = check_for_update()
+            if result.status == "update" and result.info is not None:
+                self.update_signal.emit(result.info)
+            elif result.status == "current":
+                self.up_to_date_signal.emit()
+            elif result.status == "no_releases":
+                self.no_releases_signal.emit(result.message or "Нет релизов")
+            else:
+                self.fail_signal.emit(result.message or "Ошибка проверки")
+        except Exception as exc:
+            self.fail_signal.emit(str(exc))
+
+
 class PrepareLaunchWorker(QThread):
     log_signal = pyqtSignal(str)
     status_signal = pyqtSignal(str)
@@ -131,15 +158,15 @@ class PrepareLaunchWorker(QThread):
                 self.failed_signal.emit("Не удалось загрузить профиль с сервера")
                 return
             slug = detail["slug"]
-            minecraft_dir = MINECRAFT_DIR
-            instance_dir = INSTANCES_DIR / slug
+            mc_dir = minecraft_dir()
+            instance_dir = instances_dir() / slug
             instance_dir.mkdir(parents=True, exist_ok=True)
             version = detail["minecraftVersion"]
             loader = detail.get("loader", "vanilla")
             loader_version = detail.get("loaderVersion", "")
 
             self.log(f"=== Профиль: {detail.get('name')} ({version}, {loader}) ===")
-            self.log(f"[PATH] Клиент/libraries → {minecraft_dir}")
+            self.log(f"[PATH] Клиент/libraries → {mc_dir}")
             self.log(f"[PATH] gameDirectory → {instance_dir}")
 
             callback = make_install_callback(
@@ -151,7 +178,7 @@ class PrepareLaunchWorker(QThread):
             launch_version, did_install = install_minecraft_stack(
                 version,
                 loader,
-                minecraft_dir,
+                mc_dir,
                 self.log,
                 loader_version,
                 callback=callback,
@@ -219,7 +246,7 @@ class PrepareLaunchWorker(QThread):
 
             self.ready_signal.emit({
                 "version": launch_version,
-                "minecraft_dir": str(minecraft_dir),
+                "minecraft_dir": str(mc_dir),
                 "game_dir": str(instance_dir),
                 "jvm_args": all_jvm,
                 "username": self.username,
